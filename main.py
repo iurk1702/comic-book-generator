@@ -8,6 +8,7 @@ from image_generator import ImageGenerator
 from narration_generator import NarrationGenerator
 from comic_assembler import ComicAssembler
 from character_generator import CharacterGenerator
+from video_generator import VideoGenerator
 
 load_dotenv()
 
@@ -51,6 +52,7 @@ def main():
         image_gen = ImageGenerator()
         narration_gen = NarrationGenerator()
         assembler = ComicAssembler()
+        video_gen = VideoGenerator()
     except ValueError as e:
         print(f"\n❌ Configuration Error: {e}")
         return
@@ -85,15 +87,27 @@ def main():
         print(f"✓ Generated {len(audio_files)} narration files")
         
         # Step 4: Assemble comic
-        print("\nStep 4/5: Assembling comic...")
+        print("\nStep 4/6: Assembling comic...")
         output_path = assembler.assemble_comic(panel_images, panels_data)
-        print(f"✓ Comic assembled")
+        print(f"✓ Comic assembled (PNG)")
+        
+        # Step 5: Generate PDF
+        print("\nStep 5/6: Generating PDF...")
+        pdf_path = assembler.assemble_comic_pdf(panel_images, panels_data)
+        print(f"✓ PDF generated")
+        
+        # Step 6: Generate Video
+        print("\nStep 6/6: Generating video with narration...")
+        video_path = video_gen.generate_video(panel_images, audio_files, panels_data)
+        print(f"✓ Video generated (MP4)")
         
         # Summary
         print("\n" + "=" * 50)
         print("Generation Complete!")
         print("=" * 50)
         print(f"Comic saved to: {output_path}")
+        print(f"PDF saved to: {pdf_path}")
+        print(f"Video saved to: {video_path}")
         if audio_files:
             print(f"Narration files saved to: output/narration/")
             print(f"  - {len(audio_files)} audio files generated")

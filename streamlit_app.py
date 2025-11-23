@@ -9,6 +9,7 @@ from image_generator import ImageGenerator
 from narration_generator import NarrationGenerator
 from comic_assembler import ComicAssembler
 from character_generator import CharacterGenerator
+from video_generator import VideoGenerator
 from PIL import Image as PILImage
 
 load_dotenv()
@@ -64,9 +65,10 @@ def initialize_modules():
         image_gen = ImageGenerator()
         narration_gen = NarrationGenerator()
         assembler = ComicAssembler()
-        return char_gen, story_gen, image_gen, narration_gen, assembler, None
+        video_gen = VideoGenerator()
+        return char_gen, story_gen, image_gen, narration_gen, assembler, video_gen, None
     except ValueError as e:
-        return None, None, None, None, None, str(e)
+        return None, None, None, None, None, None, str(e)
 
 def main():
     # Header
@@ -145,7 +147,7 @@ def main():
             st.stop()
         
         # Initialize modules
-        char_gen, story_gen, image_gen, narration_gen, assembler, error = initialize_modules()
+        char_gen, story_gen, image_gen, narration_gen, assembler, video_gen, error = initialize_modules()
         if error:
             st.error(f"Configuration Error: {error}")
             st.stop()
@@ -237,12 +239,22 @@ def main():
             status_text.text(f"✓ Generated {len(audio_files)} narration files")
             
             # Step 4: Assemble comic
-            status_text.text("🖼️ Step 4/5: Assembling comic...")
-            progress_bar.progress(90)
+            status_text.text("🖼️ Step 4/6: Assembling comic...")
+            progress_bar.progress(85)
             
             output_path = assembler.assemble_comic(panel_images, panels_data)
+            progress_bar.progress(88)
+            
+            # Step 5: Generate PDF
+            status_text.text("📄 Step 5/6: Generating PDF...")
+            pdf_path = assembler.assemble_comic_pdf(panel_images, panels_data)
+            progress_bar.progress(92)
+            
+            # Step 6: Generate Video
+            status_text.text("🎬 Step 6/6: Generating video with narration...")
+            video_path = video_gen.generate_video(panel_images, audio_files, panels_data)
             progress_bar.progress(100)
-            status_text.text("✓ Comic assembled!")
+            status_text.text("✓ All formats generated!")
             
             # Display final comic
             st.success("🎉 Comic Generation Complete!")
@@ -258,9 +270,10 @@ def main():
             # Download section
             st.header("💾 Download")
             
-            col1, col2 = st.columns(2)
+            # Main download options
+            download_cols = st.columns(3)
             
-            with col1:
+            with download_cols[0]:
                 if os.path.exists(output_path):
                     with open(output_path, "rb") as file:
                         st.download_button(
@@ -271,28 +284,55 @@ def main():
                             use_container_width=True
                         )
             
-            with col2:
+            with download_cols[1]:
+                if os.path.exists(pdf_path):
+                    with open(pdf_path, "rb") as file:
+                        st.download_button(
+                            label="📄 Download Comic (PDF)",
+                            data=file,
+                            file_name="comic.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+            
+            with download_cols[2]:
+                if os.path.exists(video_path):
+                    with open(video_path, "rb") as file:
+                        st.download_button(
+                            label="🎬 Download Video (MP4)",
+                            data=file,
+                            file_name="comic.mp4",
+                            mime="video/mp4",
+                            use_container_width=True
+                        )
+            
+            # Additional downloads
+            with st.expander("🎤 Download Individual Narration Files"):
                 if audio_files:
-                    st.write("**Narration Files:**")
                     for audio_file in audio_files:
                         if os.path.exists(audio_file):
                             with open(audio_file, "rb") as file:
-                                panel_num = os.path.basename(audio_file).replace("panel_", "").replace("_narration.mp3", "")
+                                panel_num = os.path.basename(audio_file).replace("panel_", "").replace("_narration.mp4", "").replace("_narration.mp3", "")
                                 st.download_button(
-                                    label=f"🎤 Download Panel {panel_num} Narration",
+                                    label=f"🎤 Panel {panel_num} Narration",
                                     data=file,
                                     file_name=os.path.basename(audio_file),
                                     mime="audio/mpeg",
                                     key=f"audio_{panel_num}"
                                 )
             
-            # Play narration files
+            # Play narration files and video
             if audio_files:
                 st.header("🎵 Listen to Narration")
                 for audio_file in audio_files:
                     if os.path.exists(audio_file):
                         panel_num = os.path.basename(audio_file).replace("panel_", "").replace("_narration.mp3", "")
                         st.audio(audio_file, format="audio/mpeg")
+            
+            # Show video preview
+            if os.path.exists(video_path):
+                st.header("🎬 Video Preview")
+                st.video(video_path)
             
         except Exception as e:
             st.error(f"❌ Error during generation: {e}")
