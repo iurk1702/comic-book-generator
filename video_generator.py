@@ -3,7 +3,7 @@ Video generator module for creating MP4 videos from comic panels with narration.
 Each panel is shown with its corresponding narration audio.
 """
 import os
-from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips, CompositeVideoClip
+from moviepy import ImageClip, AudioFileClip, concatenate_videoclips, CompositeVideoClip
 from PIL import Image
 import tempfile
 
