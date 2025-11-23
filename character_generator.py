@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 from PIL import Image
 import io
 import requests
+import time
+from replicate.exceptions import ReplicateError
 
 load_dotenv()
 
@@ -43,6 +45,9 @@ class CharacterGenerator:
             raise ValueError("REPLICATE_API_TOKEN not found in environment variables.")
         os.environ["REPLICATE_API_TOKEN"] = api_token
         self.model = "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b"
+        # Rate limiting: 6 requests per minute = 10 seconds between requests
+        self.min_delay_between_requests = 10  # seconds
+        self.last_request_time = 0
     
     def generate_character_description(self, character_name: str, story_context: str = ""):
         """
@@ -148,36 +153,79 @@ full body character design, front view, clean background,
 comic book style, character sheet, reference image, 
 vibrant colors, detailed, professional illustration"""
         
-        try:
-            output = replicate.run(
-                self.model,
-                input={
-                    "prompt": prompt,
-                    "negative_prompt": "blurry, low quality, distorted, text, watermark, multiple characters, background clutter",
-                    "num_outputs": 1,
-                    "guidance_scale": 7.5,
-                    "num_inference_steps": 30
-                }
-            )
-            
-            # Download the image
-            if output and len(output) > 0:
-                image_url = output[0] if isinstance(output, list) else output
-                response = requests.get(image_url)
-                image = Image.open(io.BytesIO(response.content))
+        # Rate limiting: ensure minimum delay between requests
+        self._wait_for_rate_limit()
+        
+        # Retry logic with exponential backoff
+        max_retries = 3
+        retry_delay = 5  # Start with 5 seconds
+        
+        for attempt in range(max_retries):
+            try:
+                output = replicate.run(
+                    self.model,
+                    input={
+                        "prompt": prompt,
+                        "negative_prompt": "blurry, low quality, distorted, text, watermark, multiple characters, background clutter",
+                        "num_outputs": 1,
+                        "guidance_scale": 7.5,
+                        "num_inference_steps": 30
+                    }
+                )
                 
-                # Save if path provided
-                if output_path:
-                    os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
-                    image.save(output_path)
-                
-                return image
-            else:
-                raise Exception("No image generated")
-                
-        except Exception as e:
-            print(f"Error generating character reference image: {e}")
-            return None
+                # Download the image
+                if output and len(output) > 0:
+                    image_url = output[0] if isinstance(output, list) else output
+                    response = requests.get(image_url)
+                    image = Image.open(io.BytesIO(response.content))
+                    
+                    # Save if path provided
+                    if output_path:
+                        os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
+                        image.save(output_path)
+                    
+                    self.last_request_time = time.time()
+                    return image
+                else:
+                    raise Exception("No image generated")
+                    
+            except ReplicateError as e:
+                # Handle rate limiting (429) and other API errors
+                if hasattr(e, 'status') and e.status == 429:
+                    if attempt < max_retries - 1:
+                        wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
+                        print(f"Rate limited. Waiting {wait_time} seconds before retry {attempt + 1}/{max_retries}...")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        print(f"Rate limit exceeded after {max_retries} attempts for character reference.")
+                        return None
+                else:
+                    print(f"Replicate API error: {e}")
+                    if attempt < max_retries - 1:
+                        time.sleep(retry_delay)
+                        continue
+                    return None
+                    
+            except Exception as e:
+                print(f"Error generating character reference image (attempt {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    continue
+                return None
+        
+        # If all retries failed
+        return None
+    
+    def _wait_for_rate_limit(self):
+        """Wait if necessary to respect rate limits"""
+        current_time = time.time()
+        time_since_last = current_time - self.last_request_time
+        
+        if time_since_last < self.min_delay_between_requests:
+            wait_time = self.min_delay_between_requests - time_since_last
+            print(f"Rate limiting: waiting {wait_time:.1f} seconds...")
+            time.sleep(wait_time)
     
     def generate_all_characters(self, character_names: list, story_context: str = "", save_references: bool = True):
         """

@@ -207,7 +207,7 @@ def main():
             cols = st.columns(num_panels)
             
             for i, panel in enumerate(panels_data):
-                status_text.text(f"🎨 Generating image for panel {i+1}/{num_panels}...")
+                status_text.text(f"🎨 Generating image for panel {i+1}/{num_panels}... (This may take 10-30 seconds due to rate limiting)")
                 progress_bar.progress(30 + int((i + 1) * 40 / num_panels))
                 
                 scene_desc = panel.get("scene_description", "")
@@ -215,6 +215,10 @@ def main():
                 chars_in_scene = [char for char in characters if char.lower() in scene_desc.lower()]
                 img = image_gen.generate_panel_image(scene_desc, panel.get("panel_number", i+1), characters_in_scene=chars_in_scene)
                 panel_images.append(img)
+                
+                # Show progress after each image
+                if img and not hasattr(img, '_is_placeholder'):
+                    status_text.text(f"✓ Panel {i+1} generated successfully")
                 
                 # Display image in column
                 with cols[i]:
