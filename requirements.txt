@@ -4,7 +4,7 @@ pillow>=10.0.0
 python-dotenv>=1.0.0
 requests>=2.31.0
 streamlit>=1.28.0
-moviepy>=1.0.3
+moviepy>=1.0.3,<3.0.0  # Supports both 1.0.3 and 2.x versions
 # Note: For deployment, you may need to install ffmpeg separately
 # On Ubuntu/Debian: apt-get install ffmpeg
 # On macOS: brew install ffmpeg

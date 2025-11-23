@@ -192,7 +192,14 @@ class VideoGenerator:
                     
                     # Create video clip showing full page for duration of all narrations
                     page_clip = ImageClip(page_img_path, duration=total_duration)
-                    video_clip = page_clip.with_audio(combined_audio)
+                    # Handle both MoviePy 1.0.3 (set_audio) and 2.x (with_audio)
+                    try:
+                        # Try MoviePy 2.x API first
+                        video_clip = page_clip.with_audio(combined_audio)
+                    except AttributeError:
+                        # Fallback to MoviePy 1.0.3 API
+                        page_clip = page_clip.set_audio(combined_audio)
+                        video_clip = page_clip
                 else:
                     # No audio, show page for minimum duration
                     total_duration = max(3.0, len(page_panel_indices) * 2.0)  # At least 2 seconds per panel
@@ -208,17 +215,30 @@ class VideoGenerator:
                 final_video = video_clips[0]
             
             # Write video file
-            # MoviePy 2.x API: verbose parameter removed, logger accepts 'bar' or None
+            # Handle both MoviePy 1.0.3 (verbose) and 2.x (logger)
             try:
-                final_video.write_videofile(
-                    output_path,
-                    fps=self.fps,
-                    codec='libx264',
-                    audio_codec='aac',
-                    temp_audiofile=os.path.join(temp_dir, 'temp_audio.m4a'),
-                    remove_temp=True,
-                    logger=None  # None = no progress bar, 'bar' = show progress bar
-                )
+                # Try MoviePy 2.x API first (logger parameter)
+                try:
+                    final_video.write_videofile(
+                        output_path,
+                        fps=self.fps,
+                        codec='libx264',
+                        audio_codec='aac',
+                        temp_audiofile=os.path.join(temp_dir, 'temp_audio.m4a'),
+                        remove_temp=True,
+                        logger=None
+                    )
+                except TypeError:
+                    # Fallback to MoviePy 1.0.3 API (verbose parameter)
+                    final_video.write_videofile(
+                        output_path,
+                        fps=self.fps,
+                        codec='libx264',
+                        audio_codec='aac',
+                        temp_audiofile=os.path.join(temp_dir, 'temp_audio.m4a'),
+                        remove_temp=True,
+                        verbose=False
+                    )
             finally:
                 # Clean up AFTER video is written - clips must stay open during writing
                 try:
