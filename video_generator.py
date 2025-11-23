@@ -97,6 +97,7 @@ class VideoGenerator:
                 final_video = video_clips[0]
             
             # Write video file
+            # MoviePy 2.x API: verbose parameter removed, logger accepts 'bar' or None
             final_video.write_videofile(
                 output_path,
                 fps=self.fps,
@@ -104,8 +105,7 @@ class VideoGenerator:
                 audio_codec='aac',
                 temp_audiofile=os.path.join(temp_dir, 'temp_audio.m4a'),
                 remove_temp=True,
-                verbose=False,
-                logger=None
+                logger=None  # None = no progress bar, 'bar' = show progress bar
             )
             
             # Clean up
