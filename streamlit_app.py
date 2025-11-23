@@ -136,7 +136,7 @@ def main():
                 help="Choose between 3-5 panels for your comic"
             )
         
-        submitted = st.form_submit_button("🚀 Generate Comic", width='stretch')
+        submitted = st.form_submit_button("🚀 Generate Comic", use_container_width=True)
     
     # Generate comic when form is submitted
     if submitted:
@@ -268,7 +268,7 @@ def main():
                             data=file,
                             file_name="comic.png",
                             mime="image/png",
-                            width='stretch'
+                            use_container_width=True
                         )
             
             with col2:
