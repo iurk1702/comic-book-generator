@@ -11,37 +11,38 @@ pip install -r requirements.txt
 
 ## Step 2: Get API Keys
 
-You need two API keys:
+You need two API keys. **See [API_KEYS_GUIDE.md](API_KEYS_GUIDE.md) for detailed instructions.**
 
-### OpenAI API Key
-1. Go to https://platform.openai.com/api-keys
-2. Sign up or log in
-3. Click "Create new secret key"
-4. Copy the key (you won't see it again!)
+### Quick Summary:
 
-### Replicate API Token
-1. Go to https://replicate.com/account/api-tokens
-2. Sign up or log in
-3. Click "Create token"
-4. Copy the token
+**OpenAI API Key:**
+- Get from: https://platform.openai.com/api-keys
+- Used for: Story generation + Text-to-speech
+- Cost: ~$0.01-0.05 per comic
+
+**Replicate API Token:**
+- Get from: https://replicate.com/account/api-tokens
+- Used for: Image generation
+- Cost: ~$0.012-0.016 per comic (4 panels)
 
 ## Step 3: Create .env File
 
-Create a `.env` file in the `comicBookGenerator` directory:
-
+**Easiest way - copy the example:**
 ```bash
 cd /Users/vaarunaykaushal/Documents/iurk1702/comicBookGenerator
-touch .env
+cp .env.example .env
 ```
 
-Then add your keys:
+Then edit `.env` and add your actual keys:
 
 ```env
-OPENAI_API_KEY=sk-your-openai-key-here
-REPLICATE_API_TOKEN=your-replicate-token-here
+OPENAI_API_KEY=sk-your-actual-key-here
+REPLICATE_API_TOKEN=your-actual-token-here
 ```
 
-**Important:** Never commit the `.env` file to git! It's already in `.gitignore`.
+**Important:** 
+- Never commit the `.env` file to git! It's already in `.gitignore`.
+- See [API_KEYS_GUIDE.md](API_KEYS_GUIDE.md) for detailed key setup instructions.
 
 ## Step 4: Test the Setup
 
