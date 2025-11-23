@@ -4,7 +4,7 @@ Each panel is shown with its corresponding narration audio.
 """
 import os
 from moviepy import ImageClip, AudioFileClip, concatenate_videoclips, CompositeVideoClip
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import tempfile
 
 class VideoGenerator:
@@ -52,6 +52,10 @@ class VideoGenerator:
                 
                 # Resize panel to video dimensions (maintain aspect ratio, center with black bars if needed)
                 resized_img = self._resize_for_video(panel_img)
+                
+                # Add dialogue/narration text to panel if available
+                if i < len(panels_data):
+                    resized_img = self._add_text_to_panel(resized_img, panels_data[i])
                 
                 # Save to temporary file
                 temp_img_path = os.path.join(temp_dir, f"panel_{panel_num}.png")
@@ -158,4 +162,70 @@ class VideoGenerator:
         final_img.paste(resized_img, (x_offset, y_offset))
         
         return final_img
+    
+    def _add_text_to_panel(self, img: Image.Image, panel_data: dict):
+        """
+        Add dialogue/narration text to panel image for video.
+        
+        Args:
+            img: PIL Image object (already resized for video)
+            panel_data: Dictionary with dialogue/narration text
+        
+        Returns:
+            PIL Image with text overlay
+        """
+        dialogue = panel_data.get("dialogue", "")
+        narration = panel_data.get("narration", "")
+        text = dialogue if dialogue else narration
+        
+        if not text:
+            return img
+        
+        img_copy = img.copy()
+        draw = ImageDraw.Draw(img_copy)
+        
+        # Use larger font for video (HD resolution)
+        try:
+            # Try to use a larger, readable font
+            font_size = int(self.video_height * 0.04)  # ~43px for 1080p
+            font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", font_size)
+        except:
+            try:
+                font = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", 40)
+            except:
+                font = ImageFont.load_default()
+        
+        # Wrap text to fit video width (with margins)
+        max_width = self.video_width - 80  # Margins
+        words = text.split()
+        lines = []
+        current_line = []
+        
+        for word in words:
+            test_line = ' '.join(current_line + [word])
+            bbox = draw.textbbox((0, 0), test_line, font=font)
+            if bbox[2] - bbox[0] <= max_width:
+                current_line.append(word)
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
+                current_line = [word]
+        if current_line:
+            lines.append(' '.join(current_line))
+        
+        # Draw text box at bottom of video
+        line_height = int(self.video_height * 0.05)  # ~54px for 1080p
+        text_box_height = len(lines) * line_height + 40
+        text_y = self.video_height - text_box_height - 20
+        
+        # Create semi-transparent background overlay
+        overlay = Image.new('RGBA', (self.video_width, text_box_height), (0, 0, 0, 180))  # Dark semi-transparent
+        img_copy.paste(overlay, (0, text_y), overlay)
+        
+        # Draw text (white for better visibility on dark background)
+        text_x = 40  # Left margin
+        for i, line in enumerate(lines):
+            draw.text((text_x, text_y + 20 + i * line_height), line, fill='white', font=font)
+        
+        return img_copy
 
