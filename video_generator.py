@@ -75,8 +75,8 @@ class VideoGenerator:
                     audio_clip.close()
                     
                     # Create image clip with audio duration
+                    # In MoviePy 2.x, fps is set at write time, not on the clip
                     img_clip = ImageClip(temp_img_path, duration=duration)
-                    img_clip = img_clip.set_fps(self.fps)
                     
                     # Add audio
                     audio_clip = AudioFileClip(audio_path)
@@ -86,7 +86,6 @@ class VideoGenerator:
                     # No audio for this panel, show for minimum duration (3 seconds)
                     duration = 3.0
                     img_clip = ImageClip(temp_img_path, duration=duration)
-                    img_clip = img_clip.set_fps(self.fps)
                     video_clip = img_clip
                 
                 video_clips.append(video_clip)
