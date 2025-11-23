@@ -5,15 +5,16 @@ env/
 
 # Environment variables
 .env
+.env.local
 
 # Output files
 output/
 *.mp3
 *.mp4
-*.pdf
 *.png
 *.jpg
 *.jpeg
+*.pdf
 
 # Python cache
 __pycache__/
@@ -22,9 +23,8 @@ __pycache__/
 *.pyd
 .Python
 
-# Streamlit (but keep config.toml)
-.streamlit/*
-!.streamlit/config.toml
+# Streamlit
+.streamlit/
 
 # IDE
 .vscode/
@@ -35,4 +35,11 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation (optional - include if you want)
+# *.md
 

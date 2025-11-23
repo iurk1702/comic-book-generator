@@ -1,10 +1,10 @@
 """
-Video generator module for creating MP4 videos from comic panels with narration.
-Each panel is shown with its corresponding narration audio.
+Video generator module for creating MP4 videos from comic pages with narration.
+Each page is shown with all panels visible, and narrations play sequentially per panel.
 """
 import os
-from moviepy import ImageClip, AudioFileClip, concatenate_videoclips, CompositeVideoClip
-from PIL import Image, ImageDraw, ImageFont
+from moviepy import ImageClip, AudioFileClip, concatenate_videoclips, concatenate_audioclips
+from PIL import Image
 import tempfile
 
 class VideoGenerator:
@@ -21,15 +21,69 @@ class VideoGenerator:
         self.video_height = video_height
         self.fps = fps
     
-    def generate_video(self, panel_images: list, audio_files: list, panels_data: list, output_path: str = "output/comic.mp4"):
+    def _distribute_panels_across_pages(self, total_panels: int, num_pages: int, avg_panels_per_page: float):
         """
-        Generate a video from comic panels with narration.
+        Distribute panels across pages with variation around average.
+        Same logic as ComicAssembler.
+        
+        Args:
+            total_panels: Total number of panels
+            num_pages: Number of pages
+            avg_panels_per_page: Average panels per page
+        
+        Returns:
+            List of panel counts per page
+        """
+        import random
+        
+        target_total = int(num_pages * avg_panels_per_page)
+        
+        # If total_panels doesn't match target, adjust
+        if total_panels != target_total:
+            actual_avg = total_panels / num_pages
+        else:
+            actual_avg = avg_panels_per_page
+        
+        # Distribute panels with variation
+        panels_per_page = []
+        remaining_panels = total_panels
+        
+        for page_num in range(num_pages):
+            if page_num == num_pages - 1:
+                # Last page gets remaining panels
+                panels_per_page.append(remaining_panels)
+            else:
+                # Calculate base number for this page
+                base = int(actual_avg)
+                
+                # Add variation: -2 to +2 panels
+                variation = random.randint(-2, 2)
+                
+                # Ensure we don't go below 1 or exceed remaining panels
+                panels_this_page = max(1, min(base + variation, remaining_panels - (num_pages - page_num - 1)))
+                
+                # Ensure at least 1 panel per remaining page
+                max_for_this_page = remaining_panels - (num_pages - page_num - 1)
+                panels_this_page = min(panels_this_page, max_for_this_page)
+                
+                panels_per_page.append(panels_this_page)
+                remaining_panels -= panels_this_page
+        
+        return panels_per_page
+    
+    def generate_video(self, panel_images: list, audio_files: list, panels_data: list, output_path: str = "output/comic.mp4", num_pages: int = 1, avg_panels_per_page: float = 5.0, assembler=None):
+        """
+        Generate a video from comic pages with narration.
+        Each page shows all panels together, with narrations playing sequentially per panel.
         
         Args:
             panel_images: List of PIL Image objects for each panel
             audio_files: List of audio file paths (MP3) for each panel
             panels_data: List of panel dictionaries with metadata
             output_path: Path to save the video file
+            num_pages: Number of pages in the comic
+            avg_panels_per_page: Average panels per page (for distribution)
+            assembler: ComicAssembler instance (to reuse layout logic)
         
         Returns:
             Path to generated video file
@@ -37,60 +91,108 @@ class VideoGenerator:
         if not panel_images:
             raise ValueError("No panel images provided")
         
+        if assembler is None:
+            raise ValueError("ComicAssembler instance required")
+        
         os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
+        
+        # Get page layouts from assembler (already configured)
+        layouts = assembler._generate_comic_layout(len(panel_images))
+        
+        if not layouts:
+            raise ValueError("Failed to generate page layouts")
         
         # Create temporary directory for processed images
         temp_dir = tempfile.mkdtemp()
         processed_images = []
         
         try:
-            # Process each panel
             video_clips = []
+            all_audio_clips = []  # Keep all audio clips alive until video is written
             
-            for i, panel_img in enumerate(panel_images):
-                panel_num = i + 1
+            for page_num, page_layout in enumerate(layouts):
+                # Create full page image with all panels (same as assembler.assemble_comic does)
+                page_img = Image.new('RGB', (assembler.page_width, assembler.page_height), color='white')
                 
-                # Resize panel to video dimensions (maintain aspect ratio, center with black bars if needed)
-                resized_img = self._resize_for_video(panel_img)
+                # Collect all panel indices and audio files for this page
+                page_panel_indices = []
+                page_audio_paths = []
                 
-                # Add dialogue/narration text to panel if available
-                if i < len(panels_data):
-                    resized_img = self._add_text_to_panel(resized_img, panels_data[i])
+                for panel_info in page_layout:
+                    idx = panel_info["panel_index"]
+                    if idx < len(panel_images):
+                        page_panel_indices.append(idx)
+                        
+                        # Find audio file for this panel
+                        panel_num = idx + 1
+                        audio_path = None
+                        for audio_file in audio_files:
+                            if f"panel_{panel_num}_" in audio_file or f"panel_{idx+1}_" in audio_file:
+                                audio_path = audio_file
+                                break
+                        page_audio_paths.append(audio_path)
+                        
+                        # Add dialogue/narration BEFORE resizing (so dialogue is part of panel)
+                        panel_img = panel_images[idx]
+                        if idx < len(panels_data):
+                            panel_with_dialogue = assembler._add_text_to_panel(panel_img, panels_data[idx])
+                        else:
+                            panel_with_dialogue = panel_img
+                        
+                        # Resize panel (with dialogue) to fit layout size
+                        # Use thumbnail to maintain aspect ratio, then paste on white background
+                        panel_with_dialogue.thumbnail(
+                            (panel_info["width"], panel_info["height"]),
+                            Image.Resampling.LANCZOS
+                        )
+                        
+                        # Create final panel with exact dimensions (centered if needed)
+                        final_panel = Image.new('RGB', (panel_info["width"], panel_info["height"]), color='white')
+                        paste_x = (panel_info["width"] - panel_with_dialogue.width) // 2
+                        paste_y = (panel_info["height"] - panel_with_dialogue.height) // 2
+                        final_panel.paste(panel_with_dialogue, (paste_x, paste_y))
+                        
+                        # Paste panel onto page
+                        page_img.paste(final_panel, (panel_info["x"], panel_info["y"]))
                 
-                # Save to temporary file
-                temp_img_path = os.path.join(temp_dir, f"panel_{panel_num}.png")
-                resized_img.save(temp_img_path)
-                processed_images.append(temp_img_path)
+                # Resize full page to video dimensions
+                resized_page = self._resize_for_video(page_img)
                 
-                # Find corresponding audio file
-                audio_path = None
-                # Try to match audio file by panel number
-                for audio_file in audio_files:
-                    # Match by panel number in filename
-                    if f"panel_{panel_num}_" in audio_file or f"panel_{i+1}_" in audio_file:
-                        audio_path = audio_file
-                        break
+                # Save full page image
+                page_img_path = os.path.join(temp_dir, f"page_{page_num}.png")
+                resized_page.save(page_img_path)
+                processed_images.append(page_img_path)
                 
-                # Create video clip for this panel
-                if audio_path and os.path.exists(audio_path):
-                    # Get audio duration
-                    audio_clip = AudioFileClip(audio_path)
-                    duration = audio_clip.duration
-                    audio_clip.close()
+                # Collect and concatenate all audio files for this page
+                page_audio_clips = []
+                total_duration = 0.0
+                
+                for audio_path in page_audio_paths:
+                    if audio_path and os.path.exists(audio_path):
+                        audio_clip = AudioFileClip(audio_path)
+                        page_audio_clips.append(audio_clip)
+                        total_duration += audio_clip.duration
+                
+                # Create video clip showing full page
+                if page_audio_clips:
+                    # Keep references to all audio clips to prevent garbage collection
+                    all_audio_clips.extend(page_audio_clips)
                     
-                    # Create image clip with audio duration
-                    # In MoviePy 2.x, fps is set at write time, not on the clip
-                    img_clip = ImageClip(temp_img_path, duration=duration)
+                    # Concatenate all narrations for this page sequentially
+                    if len(page_audio_clips) > 1:
+                        combined_audio = concatenate_audioclips(page_audio_clips)
+                        all_audio_clips.append(combined_audio)  # Keep reference
+                    else:
+                        combined_audio = page_audio_clips[0]
                     
-                    # Add audio (MoviePy 2.x uses with_audio instead of set_audio)
-                    audio_clip = AudioFileClip(audio_path)
-                    video_clip = img_clip.with_audio(audio_clip)
-                    
+                    # Create video clip showing full page for duration of all narrations
+                    page_clip = ImageClip(page_img_path, duration=total_duration)
+                    video_clip = page_clip.with_audio(combined_audio)
                 else:
-                    # No audio for this panel, show for minimum duration (3 seconds)
-                    duration = 3.0
-                    img_clip = ImageClip(temp_img_path, duration=duration)
-                    video_clip = img_clip
+                    # No audio, show page for minimum duration
+                    total_duration = max(3.0, len(page_panel_indices) * 2.0)  # At least 2 seconds per panel
+                    page_clip = ImageClip(page_img_path, duration=total_duration)
+                    video_clip = page_clip
                 
                 video_clips.append(video_clip)
             
@@ -102,20 +204,33 @@ class VideoGenerator:
             
             # Write video file
             # MoviePy 2.x API: verbose parameter removed, logger accepts 'bar' or None
-            final_video.write_videofile(
-                output_path,
-                fps=self.fps,
-                codec='libx264',
-                audio_codec='aac',
-                temp_audiofile=os.path.join(temp_dir, 'temp_audio.m4a'),
-                remove_temp=True,
-                logger=None  # None = no progress bar, 'bar' = show progress bar
-            )
-            
-            # Clean up
-            final_video.close()
-            for clip in video_clips:
-                clip.close()
+            try:
+                final_video.write_videofile(
+                    output_path,
+                    fps=self.fps,
+                    codec='libx264',
+                    audio_codec='aac',
+                    temp_audiofile=os.path.join(temp_dir, 'temp_audio.m4a'),
+                    remove_temp=True,
+                    logger=None  # None = no progress bar, 'bar' = show progress bar
+                )
+            finally:
+                # Clean up AFTER video is written - clips must stay open during writing
+                try:
+                    final_video.close()
+                except:
+                    pass
+                for clip in video_clips:
+                    try:
+                        clip.close()
+                    except:
+                        pass
+                # Close all audio clips
+                for audio_clip in all_audio_clips:
+                    try:
+                        audio_clip.close()
+                    except:
+                        pass
             
             print(f"Video saved to {output_path}")
             return output_path
@@ -165,7 +280,7 @@ class VideoGenerator:
     
     def _add_text_to_panel(self, img: Image.Image, panel_data: dict):
         """
-        Add dialogue/narration text to panel image for video.
+        Add dialogue/narration text to panel image for video with character name formatting.
         
         Args:
             img: PIL Image object (already resized for video)
@@ -186,32 +301,65 @@ class VideoGenerator:
         
         # Use larger font for video (HD resolution)
         try:
-            # Try to use a larger, readable font
             font_size = int(self.video_height * 0.04)  # ~43px for 1080p
             font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", font_size)
+            bold_font = ImageFont.truetype("/System/Library/Fonts/Helvetica-Bold.ttc", font_size)
         except:
             try:
                 font = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", 40)
+                bold_font = ImageFont.truetype("/System/Library/Fonts/Arial Bold.ttf", 40)
             except:
                 font = ImageFont.load_default()
+                bold_font = font
         
-        # Wrap text to fit video width (with margins)
-        max_width = self.video_width - 80  # Margins
-        words = text.split()
+        # Parse dialogues: "Character1: dialogue1 | Character2: dialogue2"
+        dialogues = []
+        if " | " in text:
+            # Multiple dialogues
+            dialogue_parts = text.split(" | ")
+            for part in dialogue_parts:
+                if ":" in part:
+                    char_name, dialogue_text = part.split(":", 1)
+                    dialogues.append({"character": char_name.strip(), "dialogue": dialogue_text.strip()})
+                else:
+                    dialogues.append({"character": "", "dialogue": part.strip()})
+        elif ":" in text:
+            # Single dialogue with character name
+            char_name, dialogue_text = text.split(":", 1)
+            dialogues.append({"character": char_name.strip(), "dialogue": dialogue_text.strip()})
+        else:
+            # No character name, treat as narration
+            dialogues.append({"character": "", "dialogue": text})
+        
+        # Build formatted text lines with character names
+        max_width = self.video_width - 80
         lines = []
-        current_line = []
         
-        for word in words:
-            test_line = ' '.join(current_line + [word])
-            bbox = draw.textbbox((0, 0), test_line, font=font)
-            if bbox[2] - bbox[0] <= max_width:
-                current_line.append(word)
+        for dialogue_item in dialogues:
+            char_name = dialogue_item["character"]
+            dialogue_text = dialogue_item["dialogue"]
+            
+            if char_name:
+                # Format: "CharacterName: dialogue"
+                full_text = f"{char_name}: {dialogue_text}"
             else:
-                if current_line:
-                    lines.append(' '.join(current_line))
-                current_line = [word]
-        if current_line:
-            lines.append(' '.join(current_line))
+                full_text = dialogue_text
+            
+            # Wrap text to fit video width
+            words = full_text.split()
+            current_line = []
+            
+            for word in words:
+                test_line = ' '.join(current_line + [word])
+                bbox = draw.textbbox((0, 0), test_line, font=font)
+                if bbox[2] - bbox[0] <= max_width:
+                    current_line.append(word)
+                else:
+                    if current_line:
+                        lines.append(' '.join(current_line))
+                    current_line = [word]
+            if current_line:
+                lines.append(' '.join(current_line))
         
         # Draw text box at bottom of video
         line_height = int(self.video_height * 0.05)  # ~54px for 1080p
@@ -219,13 +367,26 @@ class VideoGenerator:
         text_y = self.video_height - text_box_height - 20
         
         # Create semi-transparent background overlay
-        overlay = Image.new('RGBA', (self.video_width, text_box_height), (0, 0, 0, 180))  # Dark semi-transparent
+        overlay = Image.new('RGBA', (self.video_width, text_box_height), (0, 0, 0, 180))
         img_copy.paste(overlay, (0, text_y), overlay)
         
-        # Draw text (white for better visibility on dark background)
-        text_x = 40  # Left margin
+        # Draw text with character names in bold (white for visibility)
+        text_x = 40
         for i, line in enumerate(lines):
-            draw.text((text_x, text_y + 20 + i * line_height), line, fill='white', font=font)
+            x_pos = text_x
+            # Check if line has character name
+            if ":" in line:
+                char_part, dialogue_part = line.split(":", 1)
+                # Draw character name in bold
+                draw.text((x_pos, text_y + 20 + i * line_height), char_part + ":", fill='white', font=bold_font)
+                # Measure character name width
+                char_bbox = draw.textbbox((0, 0), char_part + ":", font=bold_font)
+                x_pos = char_bbox[2] - char_bbox[0] + text_x
+                # Draw dialogue text
+                draw.text((x_pos, text_y + 20 + i * line_height), dialogue_part, fill='white', font=font)
+            else:
+                # No character name, just draw line
+                draw.text((x_pos, text_y + 20 + i * line_height), line, fill='white', font=font)
         
         return img_copy
 

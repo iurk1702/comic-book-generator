@@ -5,5 +5,10 @@ python-dotenv>=1.0.0
 requests>=2.31.0
 streamlit>=1.28.0
 moviepy>=1.0.3
+# Note: For deployment, you may need to install ffmpeg separately
+# On Ubuntu/Debian: apt-get install ffmpeg
+# On macOS: brew install ffmpeg
 reportlab>=4.0.0
+numpy>=1.24.0
+opencv-python>=4.8.0  # For face detection in speech bubbles
 

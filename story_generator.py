@@ -50,20 +50,40 @@ class StoryGenerator:
             char_context = "\n".join([f"- {char}: {PREDEFINED_CHARACTERS.get(char, 'A character')}" 
                                       for char in characters])
         
+        # Build character names list for dialogue formatting
+        character_names_list = []
+        if character_descriptions:
+            character_names_list = [char_data.get("name", char) for char, char_data in character_descriptions.items() if char in characters]
+        elif characters:
+            character_names_list = characters
+        
+        char_names_str = ", ".join(character_names_list) if character_names_list else "characters"
+        
         system_prompt = f"""You are a comic book story generator. Generate a short, engaging story split into exactly {num_panels} panels.
 
 Available characters:
 {char_context}
 
+Character names for dialogues: {char_names_str}
+
+IMPORTANT DIALOGUE FORMATTING RULES:
+- All dialogues MUST be formatted as "CharacterName: dialogue text"
+- If multiple characters speak in one panel, separate dialogues with " | " (space pipe space)
+- Example: "Iron Man: I'll save the day! | Captain America: Not without me!"
+- Each dialogue must be preceded by the character's name followed by a colon
+- Use character names exactly as provided: {char_names_str}
+- If no character speaks, leave dialogue empty
+
 For each panel, provide:
 1. A detailed visual scene description (for image generation)
-2. Any dialogue or narration text
+2. Dialogue text formatted as "CharacterName: dialogue" (multiple separated by " | ")
+3. Narration text (if any, for narrator)
 
 Format your response as a JSON array with {num_panels} objects, each with:
 - "panel_number": panel number (1-{num_panels})
 - "scene_description": detailed visual description for image generation
-- "dialogue": dialogue or narration text (can be empty)
-- "narration": narration text for this panel (if any)
+- "dialogue": dialogue text formatted as "CharacterName: dialogue" (can be empty, multiple separated by " | ")
+- "narration": narration text for this panel (if any, for narrator voice)
 
 Keep the story simple, visual, and suitable for a comic book format."""
 

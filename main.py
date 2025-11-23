@@ -70,7 +70,12 @@ def main():
         
         # Step 2: Generate images (with character consistency)
         print("\nStep 2/5: Generating images...")
+        # Generate a single seed for all panels to ensure consistency
+        import random
+        comic_seed = random.randint(0, 2**32 - 1)
+        print(f"Using seed {comic_seed} for consistent character appearance across all panels")
         image_gen.set_character_descriptions(character_descriptions)
+        image_gen.set_seed(comic_seed)
         panel_images = []
         for i, panel in enumerate(panels_data):
             print(f"  Generating image for panel {i+1}...")
