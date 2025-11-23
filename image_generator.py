@@ -13,8 +13,11 @@ load_dotenv()
 
 class ImageGenerator:
     def __init__(self):
-        os.environ["REPLICATE_API_TOKEN"] = os.getenv("REPLICATE_API_TOKEN")
-        # Using a comic book style model
+        api_token = os.getenv("REPLICATE_API_TOKEN")
+        if not api_token:
+            raise ValueError("REPLICATE_API_TOKEN not found in environment variables. Please set it in .env file.")
+        os.environ["REPLICATE_API_TOKEN"] = api_token
+        # Using Stable Diffusion XL model for better quality
         self.model = "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b"
     
     def generate_panel_image(self, scene_description: str, panel_number: int, style: str = "comic book"):

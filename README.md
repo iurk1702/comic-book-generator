@@ -51,13 +51,36 @@ pip install -r requirements.txt
 
 ## Quick Start
 
-Once you have your API keys set up in `.env`:
+1. **Set up API keys** (see [SETUP.md](SETUP.md) for detailed instructions):
+   ```bash
+   # Create .env file
+   echo "OPENAI_API_KEY=your-key-here" > .env
+   echo "REPLICATE_API_TOKEN=your-token-here" >> .env
+   ```
 
-```bash
-python main.py
-```
+2. **Activate virtual environment and run**:
+   ```bash
+   source venv/bin/activate
+   python main.py
+   ```
 
-Follow the prompts to generate your comic!
+3. **Follow the prompts** to generate your comic!
+
+For detailed setup instructions, see [SETUP.md](SETUP.md).
+
+## Project Status
+
+✅ **Working Features:**
+- Story generation with LLM
+- Image generation with Stable Diffusion
+- Text-to-speech narration
+- Comic panel assembly
+- Error handling and validation
+
+⚠️ **Requirements:**
+- OpenAI API key (for story + narration)
+- Replicate API token (for images)
+- Python 3.8+ with virtual environment
 
 ## Usage
 

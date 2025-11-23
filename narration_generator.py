@@ -16,7 +16,10 @@ class NarrationGenerator:
         Args:
             voice: Voice type (alloy, echo, fable, onyx, nova, shimmer)
         """
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY not found in environment variables. Please set it in .env file.")
+        self.client = OpenAI(api_key=api_key)
         self.voice = voice
     
     def generate_narration_audio(self, text: str, output_path: str):

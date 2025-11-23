@@ -19,7 +19,10 @@ PREDEFINED_CHARACTERS = {
 
 class StoryGenerator:
     def __init__(self):
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY not found in environment variables. Please set it in .env file.")
+        self.client = OpenAI(api_key=api_key)
     
     def generate_story(self, user_prompt: str, num_panels: int = 4, characters: list = None):
         """
@@ -72,30 +75,44 @@ Keep the story simple, visual, and suitable for a comic book format."""
             # Parse response - try to extract JSON from markdown code blocks or plain JSON
             content = response.choices[0].message.content
             
-            # Try to extract JSON from markdown code blocks
-            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
+            # Try to extract JSON from markdown code blocks (array or object)
+            json_match = re.search(r'```(?:json)?\s*(\[.*?\]|\{.*?\})\s*```', content, re.DOTALL)
             if json_match:
                 content = json_match.group(1)
-            
-            # Try to find JSON object in content
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
-            if json_match:
-                content = json_match.group(0)
+            else:
+                # Try to find JSON array or object in content
+                json_match = re.search(r'(\[.*?\]|\{.*?\})', content, re.DOTALL)
+                if json_match:
+                    content = json_match.group(1)
             
             try:
                 story_data = json.loads(content)
                 
                 # Extract panels
-                if "panels" in story_data:
-                    panels = story_data["panels"]
-                elif isinstance(story_data, list):
+                if isinstance(story_data, list):
                     panels = story_data
-                else:
+                elif "panels" in story_data:
+                    panels = story_data["panels"]
+                elif isinstance(story_data, dict):
                     # Single panel object
                     panels = [story_data]
+                else:
+                    raise ValueError("Unexpected response format")
+                
+                # Ensure all panels have required fields
+                for panel in panels:
+                    if "panel_number" not in panel:
+                        panel["panel_number"] = panels.index(panel) + 1
+                    if "scene_description" not in panel:
+                        panel["scene_description"] = "A comic book scene"
+                    if "dialogue" not in panel:
+                        panel["dialogue"] = ""
+                    if "narration" not in panel:
+                        panel["narration"] = panel.get("dialogue", "")
                 
                 return panels[:num_panels]  # Ensure we don't exceed num_panels
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, ValueError) as e:
+                print(f"Warning: Could not parse JSON response: {e}")
                 # If JSON parsing fails, parse text response
                 return self._parse_text_response(content, num_panels)
             
