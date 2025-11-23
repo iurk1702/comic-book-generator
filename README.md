@@ -2,6 +2,22 @@
 
 A simple AI-powered comic book generator that creates 3-5 panel comic strips with narration.
 
+## Version Control
+
+This project uses Git for version control. The repository is initialized and ready to use.
+
+**Current branch:** `main`
+
+**To check status:**
+```bash
+git status
+```
+
+**To see commit history:**
+```bash
+git log --oneline
+```
+
 ## Features (v1)
 - **Story Generation**: LLM generates a short story split into 3-5 panels
 - **Image Generation**: Stable Diffusion creates comic-style images for each panel
