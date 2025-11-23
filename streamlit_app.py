@@ -8,6 +8,7 @@ from story_generator import StoryGenerator
 from image_generator import ImageGenerator
 from narration_generator import NarrationGenerator
 from comic_assembler import ComicAssembler
+from character_generator import CharacterGenerator
 from PIL import Image as PILImage
 
 load_dotenv()
@@ -58,13 +59,14 @@ def check_api_keys():
 def initialize_modules():
     """Initialize all generator modules"""
     try:
+        char_gen = CharacterGenerator()
         story_gen = StoryGenerator()
         image_gen = ImageGenerator()
         narration_gen = NarrationGenerator()
         assembler = ComicAssembler()
-        return story_gen, image_gen, narration_gen, assembler, None
+        return char_gen, story_gen, image_gen, narration_gen, assembler, None
     except ValueError as e:
-        return None, None, None, None, str(e)
+        return None, None, None, None, None, str(e)
 
 def main():
     # Header
@@ -143,7 +145,7 @@ def main():
             st.stop()
         
         # Initialize modules
-        story_gen, image_gen, narration_gen, assembler, error = initialize_modules()
+        char_gen, story_gen, image_gen, narration_gen, assembler, error = initialize_modules()
         if error:
             st.error(f"Configuration Error: {error}")
             st.stop()
@@ -153,11 +155,32 @@ def main():
         status_text = st.empty()
         
         try:
-            # Step 1: Generate story
-            status_text.text("📖 Step 1/4: Generating story...")
-            progress_bar.progress(10)
+            # Step 0: Generate characters (for consistency)
+            status_text.text("👤 Step 0/5: Generating character descriptions...")
+            progress_bar.progress(5)
             
-            panels_data = story_gen.generate_story(user_prompt, num_panels, characters)
+            character_descriptions = char_gen.generate_all_characters(characters, user_prompt, save_references=True)
+            progress_bar.progress(10)
+            status_text.text(f"✓ Generated {len(character_descriptions)} character descriptions")
+            
+            # Display character references
+            with st.expander("👤 Character References", expanded=False):
+                char_cols = st.columns(len(characters))
+                for idx, char_name in enumerate(characters):
+                    if char_name in character_descriptions:
+                        with char_cols[idx]:
+                            char_data = character_descriptions[char_name]
+                            st.markdown(f"**{char_name.title()}**")
+                            if char_data.get('reference_image'):
+                                st.image(char_data['reference_image'], use_container_width=True)
+                            desc = char_data['description'].get('detailed_description', char_data['description'].get('description', ''))
+                            st.caption(desc[:100] + "..." if len(desc) > 100 else desc)
+            
+            # Step 1: Generate story
+            status_text.text("📖 Step 1/5: Generating story...")
+            progress_bar.progress(15)
+            
+            panels_data = story_gen.generate_story(user_prompt, num_panels, characters, character_descriptions)
             progress_bar.progress(25)
             status_text.text(f"✓ Generated {len(panels_data)} panels")
             
@@ -170,9 +193,12 @@ def main():
                         st.write(f"Narration: {panel.get('narration')}")
                     st.divider()
             
-            # Step 2: Generate images
-            status_text.text("🎨 Step 2/4: Generating images...")
+            # Step 2: Generate images (with character consistency)
+            status_text.text("🎨 Step 2/5: Generating images...")
             progress_bar.progress(30)
+            
+            # Set character descriptions for consistency
+            image_gen.set_character_descriptions(character_descriptions)
             
             panel_images = []
             image_placeholders = []
@@ -185,7 +211,9 @@ def main():
                 progress_bar.progress(30 + int((i + 1) * 40 / num_panels))
                 
                 scene_desc = panel.get("scene_description", "")
-                img = image_gen.generate_panel_image(scene_desc, panel.get("panel_number", i+1))
+                # Extract characters mentioned in scene
+                chars_in_scene = [char for char in characters if char.lower() in scene_desc.lower()]
+                img = image_gen.generate_panel_image(scene_desc, panel.get("panel_number", i+1), characters_in_scene=chars_in_scene)
                 panel_images.append(img)
                 
                 # Display image in column
@@ -196,17 +224,17 @@ def main():
             status_text.text("✓ All images generated")
             
             # Step 3: Generate narration
-            status_text.text("🎤 Step 3/4: Generating narration...")
+            status_text.text("🎤 Step 3/5: Generating narration...")
             progress_bar.progress(75)
             
             narration_gen.voice = selected_voice
             audio_files = narration_gen.generate_all_narrations(panels_data)
-            progress_bar.progress(90)
+            progress_bar.progress(85)
             status_text.text(f"✓ Generated {len(audio_files)} narration files")
             
             # Step 4: Assemble comic
-            status_text.text("🖼️ Step 4/4: Assembling comic...")
-            progress_bar.progress(95)
+            status_text.text("🖼️ Step 4/5: Assembling comic...")
+            progress_bar.progress(90)
             
             output_path = assembler.assemble_comic(panel_images, panels_data)
             progress_bar.progress(100)

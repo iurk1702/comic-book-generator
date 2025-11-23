@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Predefined characters for v1
+# Predefined characters for v1 (kept for backward compatibility)
 PREDEFINED_CHARACTERS = {
     "hero": "A brave superhero with a cape",
     "villain": "A menacing villain with dark powers",
@@ -24,7 +24,7 @@ class StoryGenerator:
             raise ValueError("OPENAI_API_KEY not found in environment variables. Please set it in .env file.")
         self.client = OpenAI(api_key=api_key)
     
-    def generate_story(self, user_prompt: str, num_panels: int = 4, characters: list = None):
+    def generate_story(self, user_prompt: str, num_panels: int = 4, characters: list = None, character_descriptions: dict = None):
         """
         Generate a comic story split into panels.
         
@@ -32,6 +32,7 @@ class StoryGenerator:
             user_prompt: User's story idea
             num_panels: Number of panels (3-5)
             characters: List of character names to use
+            character_descriptions: Dictionary of character descriptions for consistency
         
         Returns:
             List of panel dictionaries with 'scene_description' and 'dialogue'
@@ -39,9 +40,15 @@ class StoryGenerator:
         if characters is None:
             characters = ["hero", "villain"]
         
-        # Build character context
-        char_context = "\n".join([f"- {char}: {PREDEFINED_CHARACTERS.get(char, 'A character')}" 
-                                  for char in characters])
+        # Build character context with detailed descriptions if available
+        if character_descriptions:
+            char_context = "\n".join([
+                f"- {char}: {character_descriptions[char]['description'].get('detailed_description', character_descriptions[char]['description'].get('description', PREDEFINED_CHARACTERS.get(char, 'A character')))}"
+                for char in characters if char in character_descriptions
+            ])
+        else:
+            char_context = "\n".join([f"- {char}: {PREDEFINED_CHARACTERS.get(char, 'A character')}" 
+                                      for char in characters])
         
         system_prompt = f"""You are a comic book story generator. Generate a short, engaging story split into exactly {num_panels} panels.
 

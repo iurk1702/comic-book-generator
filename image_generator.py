@@ -19,20 +19,41 @@ class ImageGenerator:
         os.environ["REPLICATE_API_TOKEN"] = api_token
         # Using Stable Diffusion XL model for better quality
         self.model = "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b"
+        self.character_descriptions = {}  # Store character descriptions for consistency
     
-    def generate_panel_image(self, scene_description: str, panel_number: int, style: str = "comic book"):
+    def set_character_descriptions(self, character_descriptions: dict):
+        """Set character descriptions to use for consistent character appearance."""
+        self.character_descriptions = character_descriptions
+    
+    def generate_panel_image(self, scene_description: str, panel_number: int, style: str = "comic book", characters_in_scene: list = None):
         """
-        Generate an image for a comic panel.
+        Generate an image for a comic panel with character consistency.
         
         Args:
             scene_description: Detailed scene description
             panel_number: Panel number for consistency
             style: Art style (default: comic book)
+            characters_in_scene: List of character names appearing in this scene
         
         Returns:
             PIL Image object
         """
-        prompt = f"{scene_description}, {style} style, vibrant colors, dynamic composition, comic book illustration"
+        # Build character consistency prompt
+        character_prompt = ""
+        if characters_in_scene and self.character_descriptions:
+            char_details = []
+            for char in characters_in_scene:
+                if char in self.character_descriptions:
+                    char_desc = self.character_descriptions[char]['description']
+                    detailed = char_desc.get('detailed_description', char_desc.get('description', ''))
+                    if detailed:
+                        char_details.append(f"{char}: {detailed}")
+            
+            if char_details:
+                character_prompt = ", ".join(char_details) + ", "
+        
+        # Combine scene description with character consistency
+        prompt = f"{character_prompt}{scene_description}, {style} style, vibrant colors, dynamic composition, comic book illustration, consistent character appearance"
         
         try:
             output = replicate.run(

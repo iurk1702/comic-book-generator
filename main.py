@@ -7,6 +7,7 @@ from story_generator import StoryGenerator
 from image_generator import ImageGenerator
 from narration_generator import NarrationGenerator
 from comic_assembler import ComicAssembler
+from character_generator import CharacterGenerator
 
 load_dotenv()
 
@@ -40,8 +41,12 @@ def main():
     print(f"\nGenerating {num_panels}-panel comic about: {user_prompt}")
     print("This may take a few minutes...\n")
     
+    # Get characters (default to hero and villain)
+    characters = ["hero", "villain"]
+    
     try:
         # Initialize modules
+        char_gen = CharacterGenerator()
         story_gen = StoryGenerator()
         image_gen = ImageGenerator()
         narration_gen = NarrationGenerator()
@@ -50,28 +55,37 @@ def main():
         print(f"\n❌ Configuration Error: {e}")
         return
     
+    try:
+        # Step 0: Generate characters (for consistency)
+        print("Step 0/5: Generating character descriptions...")
+        character_descriptions = char_gen.generate_all_characters(characters, user_prompt, save_references=True)
+        print(f"✓ Generated {len(character_descriptions)} character descriptions")
+        
         # Step 1: Generate story
-        print("Step 1/4: Generating story...")
-        panels_data = story_gen.generate_story(user_prompt, num_panels)
+        print("\nStep 1/5: Generating story...")
+        panels_data = story_gen.generate_story(user_prompt, num_panels, characters, character_descriptions)
         print(f"✓ Generated {len(panels_data)} panels")
         
-        # Step 2: Generate images
-        print("\nStep 2/4: Generating images...")
+        # Step 2: Generate images (with character consistency)
+        print("\nStep 2/5: Generating images...")
+        image_gen.set_character_descriptions(character_descriptions)
         panel_images = []
         for i, panel in enumerate(panels_data):
             print(f"  Generating image for panel {i+1}...")
             scene_desc = panel.get("scene_description", "")
-            img = image_gen.generate_panel_image(scene_desc, panel.get("panel_number", i+1))
+            # Extract characters mentioned in scene (simple heuristic)
+            chars_in_scene = [char for char in characters if char.lower() in scene_desc.lower()]
+            img = image_gen.generate_panel_image(scene_desc, panel.get("panel_number", i+1), characters_in_scene=chars_in_scene)
             panel_images.append(img)
         print("✓ All images generated")
         
         # Step 3: Generate narration
-        print("\nStep 3/4: Generating narration...")
+        print("\nStep 3/5: Generating narration...")
         audio_files = narration_gen.generate_all_narrations(panels_data)
         print(f"✓ Generated {len(audio_files)} narration files")
         
         # Step 4: Assemble comic
-        print("\nStep 4/4: Assembling comic...")
+        print("\nStep 4/5: Assembling comic...")
         output_path = assembler.assemble_comic(panel_images, panels_data)
         print(f"✓ Comic assembled")
         
@@ -83,6 +97,7 @@ def main():
         if audio_files:
             print(f"Narration files saved to: output/narration/")
             print(f"  - {len(audio_files)} audio files generated")
+        print(f"Character references saved to: output/characters/")
         print("\nEnjoy your comic!")
     
     except Exception as e:
