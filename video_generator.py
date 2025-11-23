@@ -3,7 +3,12 @@ Video generator module for creating MP4 videos from comic pages with narration.
 Each page is shown with all panels visible, and narrations play sequentially per panel.
 """
 import os
-from moviepy import ImageClip, AudioFileClip, concatenate_videoclips, concatenate_audioclips
+# MoviePy 1.0.3 uses moviepy.editor for imports
+try:
+    from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips, concatenate_audioclips
+except ImportError:
+    # Fallback for MoviePy 2.x (if installed)
+    from moviepy import ImageClip, AudioFileClip, concatenate_videoclips, concatenate_audioclips
 from PIL import Image
 import tempfile
 
