@@ -78,9 +78,9 @@ class VideoGenerator:
                     # In MoviePy 2.x, fps is set at write time, not on the clip
                     img_clip = ImageClip(temp_img_path, duration=duration)
                     
-                    # Add audio
+                    # Add audio (MoviePy 2.x uses with_audio instead of set_audio)
                     audio_clip = AudioFileClip(audio_path)
-                    video_clip = img_clip.set_audio(audio_clip)
+                    video_clip = img_clip.with_audio(audio_clip)
                     
                 else:
                     # No audio for this panel, show for minimum duration (3 seconds)
