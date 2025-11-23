@@ -136,7 +136,7 @@ def main():
                 help="Choose between 3-5 panels for your comic"
             )
         
-        submitted = st.form_submit_button("🚀 Generate Comic", use_container_width=True)
+        submitted = st.form_submit_button("🚀 Generate Comic", width='stretch')
     
     # Generate comic when form is submitted
     if submitted:
@@ -172,7 +172,7 @@ def main():
                             char_data = character_descriptions[char_name]
                             st.markdown(f"**{char_name.title()}**")
                             if char_data.get('reference_image'):
-                                st.image(char_data['reference_image'], use_container_width=True)
+                                st.image(char_data['reference_image'], width='stretch')
                             desc = char_data['description'].get('detailed_description', char_data['description'].get('description', ''))
                             st.caption(desc[:100] + "..." if len(desc) > 100 else desc)
             
@@ -222,7 +222,7 @@ def main():
                 
                 # Display image in column
                 with cols[i]:
-                    st.image(img, caption=f"Panel {i+1}", use_container_width=True)
+                    st.image(img, caption=f"Panel {i+1}", width='stretch')
             
             progress_bar.progress(70)
             status_text.text("✓ All images generated")
@@ -251,7 +251,7 @@ def main():
             # Display final comic from file
             if os.path.exists(output_path):
                 final_comic_img = PILImage.open(output_path)
-                st.image(final_comic_img, use_container_width=True, caption="Your Generated Comic")
+                st.image(final_comic_img, width='stretch', caption="Your Generated Comic")
             else:
                 st.warning("Comic file not found, but individual panels are shown above.")
             
@@ -268,7 +268,7 @@ def main():
                             data=file,
                             file_name="comic.png",
                             mime="image/png",
-                            use_container_width=True
+                            width='stretch'
                         )
             
             with col2:
