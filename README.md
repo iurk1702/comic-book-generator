@@ -51,6 +51,8 @@ pip install -r requirements.txt
 
 ## Quick Start
 
+### Option 1: Web UI (Recommended)
+
 1. **Set up API keys** (see [SETUP.md](SETUP.md) for detailed instructions):
    ```bash
    # Create .env file
@@ -58,7 +60,21 @@ pip install -r requirements.txt
    echo "REPLICATE_API_TOKEN=your-token-here" >> .env
    ```
 
-2. **Activate virtual environment and run**:
+2. **Activate virtual environment and launch UI**:
+   ```bash
+   source venv/bin/activate
+   streamlit run streamlit_app.py
+   ```
+
+3. **Open your browser** - Streamlit will automatically open at `http://localhost:8501`
+
+4. **Fill in the form** and click "Generate Comic"!
+
+### Option 2: Command Line
+
+1. **Set up API keys** (same as above)
+
+2. **Run the CLI version**:
    ```bash
    source venv/bin/activate
    python main.py
@@ -94,5 +110,6 @@ python main.py
 - `image_generator.py`: Stable Diffusion integration for panel images
 - `narration_generator.py`: TTS for narration
 - `comic_assembler.py`: Combines panels into final comic
-- `main.py`: Main workflow orchestrator
+- `main.py`: CLI workflow orchestrator
+- `streamlit_app.py`: Web UI for the application
 
