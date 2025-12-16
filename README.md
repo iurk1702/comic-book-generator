@@ -1,6 +1,29 @@
 # Comic Book Generator v1
 
-A simple AI-powered comic book generator that creates 3-5 panel comic strips with narration.
+An AI-powered comic book generator that transforms your story ideas into fully illustrated comic books with narration, available in multiple formats (PNG, PDF, and video).
+
+## 🌐 Live Demo
+
+**Try it now:** [https://comic-book-generator-mgjkugmgofh2xjnzydkjbq.streamlit.app/](https://comic-book-generator-mgjkugmgofh2xjnzydkjbq.streamlit.app/)
+
+## About This Project
+
+The Comic Book Generator is an end-to-end AI application that automates the entire comic book creation process. Simply provide a story idea, and the system will:
+
+1. **Generate a Complete Story**: Uses GPT-4o-mini to create a structured narrative broken down into multiple panels with scene descriptions and narration text.
+
+2. **Create Consistent Characters**: Supports both existing comic book characters (from a predefined database) and custom characters. Generates reference images to maintain visual consistency across all panels.
+
+3. **Generate Comic-Style Images**: Uses Stable Diffusion via Replicate to create high-quality, comic-style illustrations for each panel, ensuring characters look consistent throughout the story.
+
+4. **Add Voice Narration**: Converts the narration text into natural-sounding speech using OpenAI's text-to-speech API, with multiple voice options available.
+
+5. **Assemble Multiple Formats**: Combines everything into:
+   - **PNG**: High-resolution image of the complete comic
+   - **PDF**: Print-ready comic book format
+   - **MP4 Video**: Animated comic with synchronized narration
+
+The application features both a user-friendly web interface (built with Streamlit) and a command-line interface, making it accessible for both casual users and developers.
 
 ## Version Control
 
@@ -19,10 +42,14 @@ git log --oneline
 ```
 
 ## Features (v1)
-- **Story Generation**: LLM generates a short story split into 3-5 panels
-- **Image Generation**: Stable Diffusion creates comic-style images for each panel
-- **Narration**: Text-to-speech adds voice narration
-- **Predefined Characters**: Limited set of characters for consistency
+- **Story Generation**: LLM generates a complete story split into multiple panels (configurable pages and panels per page)
+- **Image Generation**: Stable Diffusion creates comic-style images for each panel with character consistency
+- **Character Management**: Support for both existing comic book characters and custom character creation
+- **Character Consistency**: Generates reference images to maintain visual consistency across all panels
+- **Narration**: Text-to-speech adds voice narration with multiple voice options
+- **Multiple Export Formats**: Generate comics as PNG, PDF, and MP4 video with synchronized narration
+- **Web UI**: User-friendly Streamlit interface for easy comic creation
+- **CLI Support**: Command-line interface for programmatic usage
 
 ## Setup
 
